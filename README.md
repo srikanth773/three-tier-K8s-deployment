@@ -38,5 +38,3 @@ Jerney/
 │   └── jerney-nginx.conf    # Nginx reverse proxy config
 └── README.md
 `
-
-![this is architecture](https://github.com/srikanth773/three-tier-K8s-deployment/blob/main/approvals1.PNG)
