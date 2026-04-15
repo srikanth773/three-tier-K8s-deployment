@@ -39,5 +39,4 @@ Jerney/
 └── README.md
 
 
-
-![this is appplication](https://github.com/srikanth773/three-tier-K8s-deployment/blob/ec052e5c072563bae1b5445ccdd4881133c4d6d7/approvals1.PNG)
+![this is application](approvals1.PNG)
