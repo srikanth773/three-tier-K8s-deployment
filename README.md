@@ -39,4 +39,6 @@ Jerney/
 └── README.md
 ```
 
-![Approval](./approvals1.PNG)
+
+## system design for three tier application
+![simple over view of architecture](Gemini_Generated_Image_m96iylm96iylm96i.png)
