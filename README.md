@@ -38,3 +38,5 @@ Jerney/
 │   └── jerney-nginx.conf    # Nginx reverse proxy config
 └── README.md
 `
+
+![this is architecture](imges/architecture.png)
