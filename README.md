@@ -39,4 +39,4 @@ Jerney/
 └── README.md
 `
 
-![this is architecture](imges/architecture.png)
+![this is architecture](https://github.com/srikanth773/three-tier-K8s-deployment/blob/main/approvals1.PNG)
