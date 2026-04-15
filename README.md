@@ -38,4 +38,4 @@ Jerney/
 │   └── jerney-nginx.conf    # Nginx reverse proxy config
 └── README.md
 
-<img width="1408" height="768" alt="Gemini_Generated_Image_m96iylm96iylm96i" src="https://github.com/user-attachments/assets/1d462c6a-98bf-4203-b783-3263f9d415d0" />
+![Approval](./approvals1.PNG)
