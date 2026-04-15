@@ -40,5 +40,4 @@ Jerney/
 
 
 
-
-![simple over view of application](Gemini_Generated_Image_m96iylm96iylm96i.png)
+![this is appplication](https://github.com/srikanth773/three-tier-K8s-deployment/blob/ec052e5c072563bae1b5445ccdd4881133c4d6d7/approvals1.PNG)
