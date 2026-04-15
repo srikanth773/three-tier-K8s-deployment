@@ -37,4 +37,9 @@ Jerney/
 │   ├── setup.sh             # One-click EC2 setup script
 │   └── jerney-nginx.conf    # Nginx reverse proxy config
 └── README.md
+
+
+
+
+![simple overvier of application](https://github.com/srikanth773/three-tier-K8s-deployment/blob/dba13e83e863edabc52dd58155f48e802ef361cc/Gemini_Generated_Image_m96iylm96iylm96i.png)
 `
