@@ -37,5 +37,6 @@ Jerney/
 │   ├── setup.sh             # One-click EC2 setup script
 │   └── jerney-nginx.conf    # Nginx reverse proxy config
 └── README.md
+```
 
 ![Approval](./approvals1.PNG)
