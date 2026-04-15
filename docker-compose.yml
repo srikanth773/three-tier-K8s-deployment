@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: jerney-db
+    restart: unless-stoped
+    environment:
+      POSTGRES_USER: jerney_user
+      POSTGRES_PASSWORD: jerney_pass_2026
+      POSTGRES_DB: jerney_db
+    ports:
+      - "5432:5432"
+    volumes:
+     - pgdata:/var/lib/postgresql/data
+
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jerney_backend
+    restart: unless-stoped
+    environment:
+      PORT: "5000"
+      DB_USER: jerney_user
+      DB_PASSWORD: jerney_pass_2026
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: jerney-db
+    expose:
+      - "5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jerney_frontend
+    restart: unless-stoped
+    ports:
+      - "80:8080"
+    depends_on:
+      - backend
+
+
+volumes:
+  pgdata:
+    driver: local

@@ -1,0 +1,185 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger: none
+
+resources:
+- repo: self
+
+variables:
+  tag: '$(Build.BuildId)'
+  acrlogin: 'mexico.azurecr.io'
+  backendimagename: 'jerney-abackend'
+  frontendimagename: 'jerney-frontend'
+  rgname: 'rg-2'
+  AKSname: 'kubecluster'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: BuildAndPush
+    displayName: BuildandPushDockerimages
+    jobs:
+      - job: BuildImages
+        steps:
+          - checkout: self
+          - task: Docker@2
+            inputs:
+              containerRegistry: 'FF_sc'
+              repository: '$(backendimagename)'
+              command: 'buildAndPush'
+              Dockerfile: 'backend/Dockerfile'
+              buildContext: 'backend'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - task: Docker@2
+            inputs:
+              containerRegistry: 'FF_sc'
+              repository: '$(frontendimagename)'
+              command: 'buildAndPush'
+              Dockerfile: 'frontend/Dockerfile'
+              buildContext: 'frontend'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+  - stage: Terraform
+    dependsOn:  BuildAndPush
+    jobs:
+      - job: infraCreation
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: 'latest'
+
+          - task: TerraformTaskV4@4
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: 'terraform'
+              backendServiceArm: 'Amazon_SC_owner'
+              backendAzureRmResourceGroupName: 'rg-1'
+              backendAzureRmStorageAccountName: 'store832'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'java.tfstate'
+
+          - task: TerraformTaskV4@4
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: 'terraform'
+              commandOptions: '--auto-approve'
+              environmentServiceNameAzureRM: 'Amazon_SC_owner'
+
+  - stage: Deploy_on_AKS
+    dependsOn: Terraform
+    jobs:
+      - job: DeployApplication
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@3
+            displayName: connect to AKS
+            inputs:
+              connectionType: 'azureRM'
+              azureSubscription: 'Amazon-SCmanual'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: 'az aks get-credentials --resource-group $(rgname) --name $(AKSname) --overwrite-existing'
+
+          - task: AzureCLI@3
+            name: detectEnv
+            displayName: find the active environment
+            inputs:
+              connectionType: 'azureRM'
+              azureSubscription: 'Amazon-SCmanual'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                CURRENT=$(kubectl get svc jerney-backend -o jsonpath='{.spec.selector.version}' 2>/dev/null || echo "none")
+                          if [ "$CURRENT" = "blue" ]; then
+                            NEXT="green"
+                          else
+                            NEXT="blue"
+                          fi
+                          echo "current environment: $CURRENT"
+                          echo "Deploying environment: $NEXT"
+
+                          # 👇 THIS FIXES YOUR ISSUE
+                          echo "##vso[task.setvariable variable=targetEnv]$NEXT"
+
+                          # 👇 THIS IS FOR NEXT STAGE
+                          echo "##vso[task.setvariable variable=targetEnv;isOutput=true]$NEXT"
+          
+          - task: AzureCLI@3
+            displayName: Deploy postgresql
+            inputs:
+              connectionType: 'azureRM'
+              azureSubscription: 'Amazon-SCmanual'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                kubectl apply -f k8s/postgres-secrets.yml
+                kubectl apply -f k8s/postgres-pvc.yml
+                kubectl apply -f k8s/postgresql-deployment.yml
+                kubectl apply -f k8s/postgresql-service.yml
+
+          - task: AzureCLI@3
+            displayName: services deployment
+            inputs:
+              connectionType: 'azureRM'
+              azureSubscription: 'Amazon-SCmanual'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                kubectl apply -f k8s/backend-service.yml
+                kubectl apply -f k8s/frontend-service.yml
+
+          - task: AzureCLI@3
+            inputs:
+              connectionType: 'azureRM'
+              azureSubscription: 'Amazon-SCmanual'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+
+                echo "deploying $(targetEnv)...."
+
+                kubectl apply -f k8s/backend-$(targetEnv).yml
+                kubectl apply -f k8s/frontend-$(targetEnv).yml
+
+                echo "Forcing pod refresh (important for latest tag)...."
+
+                kubectl rollout restart deployment/backend-$(targetEnv)
+                kubectl rollout restart deployment/frontend-$(targetEnv)
+                kubectl rollout restart deployment/backend-$(targetEnv)
+                kubectl rollout restart deployment/frontend-$(targetEnv)
+                kubectl get pods
+
+  - stage: switch_traffic
+    dependsOn: Deploy_on_AKS
+    variables:
+      targetEnv: $[ stageDependencies.Deploy_on_AKS.DeployApplication.outputs['detectEnv.targetEnv'] ]
+    jobs:
+    - deployment: switch
+      environment: production
+      strategy:
+       runOnce:
+         deploy:
+          steps:
+            - task: AzureCLI@3
+              inputs:
+                connectionType: 'azureRM'
+                azureSubscription: 'Amazon-SCmanual'
+                scriptType: 'bash'
+                scriptLocation: 'inlineScript'
+                inlineScript: |
+                  az aks get-credentials --resource-group $(rgname) --name $(AKSname) --overwrite-existing
+                  echo "switching to $(targetEnv)...."
+                  kubectl patch svc jerney-backend -p "{\"spec\":{\"selector\":{\"app\":\"backend\",\"version\":\"$(targetEnv)\"}}}"
+                  kubectl patch svc frontend -p "{\"spec\":{\"selector\":{\"app\":\"frontend\",\"version\":\"$(targetEnv)\"}}}"
+                  kubectl get endpoints

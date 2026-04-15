@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: mexico.azurecr.io/jerney-backend:latest
+          imagePullPolicy: Always
+          ports:
+           - containerPort: 5000
+             protocol: TCP
+          env:
+            - name: PGHOST
+              value: "postgres-service"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            - name: PGPORT
+              value: "5432"
+            - name: DATABASE_URL
+              value: "postgres://postgres_user:jerney_pass_2026@postgres-service:5432/jerney"
